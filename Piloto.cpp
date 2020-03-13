@@ -18,23 +18,33 @@ CascadeClassifier face_cascade;
 CascadeClassifier profile_face_cascade;
 String window_name = "Detecta faces";
 
+long int totalfaces = 0, totalprofilefaces = 0;
+
 void detectAndDisplay(Mat frame){
-	vector<Rect> faces, profile_faces; // vetor do tipo RECT (contém x, y, width e height)
+	vector<Rect> faces, profile_faces; //Vetor do tipo RECT (contém x, y, width e height)
+
+	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
+	const float scale = 2;
+	cv::Mat resized_frame( cvRound( frame.rows / scale ), cvRound( frame.cols / scale ), CV_8UC1 );
+	cv::resize( frame, resized_frame, resized_frame.size() );
 
     //Detecta faces
-    face_cascade.detectMultiScale( frame, faces, 1.1, 2, 0|CASCADE_SCALE_IMAGE, Size(30, 30) );
-	profile_face_cascade.detectMultiScale( frame, profile_faces, 1.1, 2, 0|CASCADE_SCALE_IMAGE, Size(30, 30) );
+    face_cascade.detectMultiScale( resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30) );
+	profile_face_cascade.detectMultiScale( resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30) );
+
+	totalfaces += faces.size();
+	totalprofilefaces += profile_faces.size();
+
 
 	if( faces.size() > profile_faces.size() ){
 
 		for( size_t i = 0; i < faces.size(); i++ ){
 			if( i < profile_faces.size() ){
 				Point center( profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2 );
-        		ellipse( frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar( 255, 255, 0 ), 4, 8, 0 );
+        		ellipse( resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar( 255, 255, 0 ), 4, 8, 0 );
 			}
-
         	Point center( faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2 );
-        	ellipse( frame, center, Size( faces[i].width/2, faces[i].height/2 ), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
+        	ellipse( resized_frame, center, Size( faces[i].width/2, faces[i].height/2 ), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
     	}
 
 	} else{
@@ -43,16 +53,16 @@ void detectAndDisplay(Mat frame){
 
 			if( i < faces.size() ){
 				Point center( faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2 );
-        		ellipse( frame, center, Size( faces[i].width/2, faces[i].height/2 ), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
+        		ellipse( resized_frame, center, Size( faces[i].width/2, faces[i].height/2 ), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
 			}
 
        		Point center( profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2 );
-        	ellipse( frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar( 255, 255, 0 ), 4, 8, 0 );
+        	ellipse( resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar( 255, 255, 0 ), 4, 8, 0 );
     	}		
 
 	}
 
-    imshow( window_name, frame );
+    imshow( window_name, resized_frame );
 }
 
 
@@ -88,9 +98,12 @@ int main (int argc, char** argv){
 
         if( c == 32 ){
        		break;
-       	} // interrompe deteccao de faces e reproducao do video ao clicar espaco
+       	} //Interrompe deteccao de faces e reproducao do video ao clicar espaco
 	
 	}
+
+	cout << "faces: " << totalfaces << endl; //Total de faces (frontais)
+	cout << "profile faces: " << totalprofilefaces << endl; //Total de perfis de faces
 
 	return 0;
 }
