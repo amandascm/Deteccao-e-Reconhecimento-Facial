@@ -36,9 +36,11 @@ int main (int argc, char** argv){
 	VideoCapture capture("video.mp4");
 	Mat frame;
 
-    if( !face_cascade.load( face_cascade_name ) ){ printf("--(!)Error loading face cascade\n"); return -1; };
+    if( !face_cascade.load( face_cascade_name ) ){
+    	printf("Error ao carregar face cascade\n");
+    	return -1;
+    }
 
-    //capture.open( -1 ); Para detectar da webcam
     if ( !capture.isOpened() ) {
     	printf("Erro ao abrir o video\n"); 
     	return -1;
@@ -56,8 +58,9 @@ int main (int argc, char** argv){
 
         if( c == 32 ){
        		break;
-       	} // interrompe reproducao do video ao clicar espaco
+       	} // interrompe deteccao de faces e reproducao do video ao clicar espaco
 	
 	}
+	
 	return 0;
 }
