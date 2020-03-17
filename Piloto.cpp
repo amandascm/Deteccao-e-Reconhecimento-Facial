@@ -16,19 +16,24 @@
 using namespace std;
 using namespace cv;
 
+//Haarcascades
 String face_cascade_name = "haarcascade_frontalface_alt.xml";
 String profile_face_cascade_name = "haarcascade_profileface.xml";
+
+//Classificadores
 CascadeClassifier face_cascade;
 CascadeClassifier profile_face_cascade;
+
+//Janelas
 String window_name = "Detecta faces";
 String window_name2 = "Reconhecid@";
 String window_name3 = "Registrad@";
 
 long int totalfaces = 0, totalprofilefaces = 0, total = 0;
-int im_width, im_height, num_componentes = 1, id = 23;
-double thresh = 10.0;
+int im_width, im_height, id = 23;
+double thresh = 123.0;
 
-Ptr<face::FaceRecognizer> reconhecer = face::createEigenFaceRecognizer(num_componentes, thresh);
+Ptr<face::FaceRecognizer> reconhecer = face::createEigenFaceRecognizer(0, thresh);
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -50,12 +55,12 @@ int reconhece(Mat resized_frame, Rect face){
 	}
 }
 
-void detectAndDisplay(Mat frame){
+Mat detectAndDisplay(Mat frame){
 
-	vector<Rect> faces, profile_faces; //Vetor do tipo RECT (contém x, y, width e height)
+	vector<Rect> faces, profile_faces, bodies; //Vetor do tipo RECT (contém x, y, width e height)
 
 	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
-	const float scale = 2;
+	const float scale = 2.5;
 	Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
 	resize( frame, resized_frame, resized_frame.size() );
 
@@ -75,6 +80,8 @@ void detectAndDisplay(Mat frame){
 
 	//Para manter elipses coloridas se o frame estiver em escala cinza
 	cvtColor(resized_frame, resized_frame, COLOR_GRAY2BGR);
+
+	//rectangle(resized_frame, bodies[i], CV_RGB(0, 0, 255), 2);
 
 	//Definir elipses para cada face ou perfil de face detectado
 	if(faces.size() > profile_faces.size()){
@@ -118,8 +125,9 @@ void detectAndDisplay(Mat frame){
     	}		
 	}
 
+	return resized_frame;
 	//Printa o frame na janela
-    imshow(window_name, resized_frame);
+    //imshow(window_name, resized_frame);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -161,7 +169,6 @@ int main(int argc, char** argv){
 		return -1;
 	}
 
-
 	/*Lê os nomes das imagens (de uma mesma pessoa) digitados no terminal (dps do ./exe)
 	Converte cor, encontra face, redimensiona e insere nos vetores imagens
 	Insere id's no vetor tags*/
@@ -198,19 +205,34 @@ int main(int argc, char** argv){
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
 
-    	//Lê vídeo frame por frame, detecta faces e reconhece
-    	while(capture.read(frame)){
-		    if(frame.empty()){
-		        printf( "Impossivel ler frame\n" );
-		        break;
-		    }
-		    detectAndDisplay(frame);
-		    //imshow( window_name, frame );
-		    char c = waitKey(1);
-		    if(c == 32){
-		       	break;
-		    } //Interrompe deteccao de faces e reproducao do video ao clicar espaco
+    //Região paralela
+    #pragma omp parallel
+    {
+	    //Lê vídeo frame por frame, detecta faces e reconhece
+	    for(int i = 0; i < totalframes; i++){
+	    	#pragma omp critical
+	    	{
+	    		capture.read(frame);
+	    	}
+
+			if(frame.empty()){
+				printf( "Impossivel ler frame\n" );
+				exit(1);
+			}
+
+			frame = detectAndDisplay(frame);
+			
+			#pragma omp critical
+			{
+				imshow(window_name, frame);
+			}
+			
+			char c = waitKey(1);
+			if(c == 32){
+				exit(1);
+			} //Interrompe deteccao de faces e reproducao do video ao clicar espaco
 		}
+	}
 
 	destroyAllWindows();
 	capture.release(); 
