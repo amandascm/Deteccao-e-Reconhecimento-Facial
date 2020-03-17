@@ -55,25 +55,14 @@ int reconhece(Mat resized_frame, Rect face){
 	}
 }
 
-Mat detectAndDisplay(Mat frame){
+Mat detectAndDisplay(Mat resized_frame){
 
-	vector<Rect> faces, profile_faces, bodies; //Vetor do tipo RECT (contém x, y, width e height)
-
-	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
-	const float scale = 2.5;
-	Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
-	resize( frame, resized_frame, resized_frame.size() );
-
-	//Converte para escala cinza, ajusta brilho e equaliza frame
-	Mat frame_gray;
-    cvtColor(resized_frame, resized_frame, COLOR_BGR2GRAY);
-    equalizeHist(resized_frame, resized_frame);
+	vector<Rect> faces, profile_faces; //Vetor do tipo RECT (contém x, y, width e height)
 
     //Detecta faces
     face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
 	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
 
-	//Contabiliza total de faces frontais e de perfis de faces
 	totalfaces += faces.size();
 	totalprofilefaces += profile_faces.size();
 	total = total + faces.size() + profile_faces.size();
@@ -205,26 +194,35 @@ int main(int argc, char** argv){
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
 
+    Mat videoProcessado[totalframes];
+
     //Região paralela
-    #pragma omp parallel
-    {
+    #pragma omp_set_num_threads = 7;
+    #pragma omp parallel for ordered
 	    //Lê vídeo frame por frame, detecta faces e reconhece
 	    for(int i = 0; i < totalframes; i++){
-	    	#pragma omp critical
+	    	#pragma omp critical //Somente uma thread por vez
 	    	{
 	    		capture.read(frame);
 	    	}
-
-			if(frame.empty()){
+	    	if(frame.empty()){
 				printf( "Impossivel ler frame\n" );
 				exit(1);
 			}
+	    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
+			const float scale = 3;
+			Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
+			resize( frame, resized_frame, resized_frame.size() );
 
-			frame = detectAndDisplay(frame);
+			//Converte para escala cinza, ajusta brilho e equaliza frame
+    		cvtColor(resized_frame, resized_frame, COLOR_BGR2GRAY);
+    		equalizeHist(resized_frame, resized_frame);
+
+			videoProcessado[i] = detectAndDisplay(resized_frame); //Vetor para garantir a ordenação dos frames processados
 			
-			#pragma omp critical
+			#pragma omp ordered //Para reproduzir frames processados em ordem
 			{
-				imshow(window_name, frame);
+				imshow(window_name, videoProcessado[i]);
 			}
 			
 			char c = waitKey(1);
@@ -232,7 +230,6 @@ int main(int argc, char** argv){
 				exit(1);
 			} //Interrompe deteccao de faces e reproducao do video ao clicar espaco
 		}
-	}
 
 	destroyAllWindows();
 	capture.release(); 
