@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#include <queue>
+#include <thread>
 
 #include <omp.h>
 
@@ -32,8 +34,15 @@ String window_name3 = "Registrad@";
 long int totalfaces = 0, totalprofilefaces = 0, total = 0;
 int im_width, im_height, id = 23;
 double thresh = 123.0;
+vector<Mat> videoProcessado;
 
 Ptr<face::FaceRecognizer> reconhecer = face::createEigenFaceRecognizer(0, thresh);
+
+struct frameEindice
+{
+	Mat frame;
+	int indice;	
+};
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -55,9 +64,10 @@ int reconhece(Mat resized_frame, Rect face){
 	}
 }
 
-Mat detectAndDisplay(Mat resized_frame){
+void detectAndDisplay(frameEindice pacote){
 
 	vector<Rect> faces, profile_faces; //Vetor do tipo RECT (contém x, y, width e height)
+	Mat resized_frame = pacote.frame;
 
     //Detecta faces
     face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
@@ -71,6 +81,7 @@ Mat detectAndDisplay(Mat resized_frame){
 	cvtColor(resized_frame, resized_frame, COLOR_GRAY2BGR);
 
 	//rectangle(resized_frame, bodies[i], CV_RGB(0, 0, 255), 2);
+	//putText(src, "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
 
 	//Definir elipses para cada face ou perfil de face detectado
 	if(faces.size() > profile_faces.size()){
@@ -114,9 +125,8 @@ Mat detectAndDisplay(Mat resized_frame){
     	}		
 	}
 
-	return resized_frame;
-	//Printa o frame na janela
-    //imshow(window_name, resized_frame);
+	while((videoProcessado.size() < pacote.indice)){}
+	videoProcessado.push_back(resized_frame);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -161,9 +171,9 @@ int main(int argc, char** argv){
 	/*Lê os nomes das imagens (de uma mesma pessoa) digitados no terminal (dps do ./exe)
 	Converte cor, encontra face, redimensiona e insere nos vetores imagens
 	Insere id's no vetor tags*/
-	for(int i=1; i<argc; i++){
+	for(int k=1; k<argc; k++){
 
-		img = imread(argv[i], IMREAD_GRAYSCALE);
+		img = imread(argv[k], IMREAD_GRAYSCALE);
 
 		if(img.empty()){
 			cout << "Impossivel ler imagem" << endl;
@@ -176,7 +186,7 @@ int main(int argc, char** argv){
 
 		face = img(rect[0]);
 
-		if(i==1){
+		if(k==1){
 			im_width = face.cols;
 			im_height = face.rows;
 		}
@@ -194,40 +204,55 @@ int main(int argc, char** argv){
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
 
-    Mat videoProcessado[totalframes];
 
-    //Região paralela
-    #pragma omp_set_num_threads = 7;
-    #pragma omp parallel for ordered
+    //Mat videoProcessado[totalframes];
 	    //Lê vídeo frame por frame, detecta faces e reconhece
-	    for(int i = 0; i < totalframes; i++){
-	    	#pragma omp critical //Somente uma thread por vez
-	    	{
+    	int i = 0;
+    	int j = 0;
+    	int lendo = 1;
+    	int printando = 1;
+
+    	while(lendo || printando){
+
+    		if(i < totalframes){
 	    		capture.read(frame);
-	    	}
-	    	if(frame.empty()){
-				printf( "Impossivel ler frame\n" );
-				exit(1);
+	    		i++;
+
+	    		if(frame.empty()){
+					printf( "Impossivel ler frame\n" );
+					break;
+				}
+
+		    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
+				const float scale = 2.9;
+				Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
+				resize( frame, resized_frame, resized_frame.size() );
+
+				//Converte para escala cinza, ajusta brilho e equaliza frame
+	    		cvtColor(resized_frame, resized_frame, COLOR_BGR2GRAY);
+	    		equalizeHist(resized_frame, resized_frame);
+
+	    		frameEindice pacote;
+	    		pacote.frame = resized_frame;
+	    		pacote.indice = (i-1); //Declara struct com indice e frame a ser processado
+
+				thread (detectAndDisplay, pacote).detach();
+			}else{
+				lendo = 0;
 			}
-	    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
-			const float scale = 3;
-			Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
-			resize( frame, resized_frame, resized_frame.size() );
 
-			//Converte para escala cinza, ajusta brilho e equaliza frame
-    		cvtColor(resized_frame, resized_frame, COLOR_BGR2GRAY);
-    		equalizeHist(resized_frame, resized_frame);
-
-			videoProcessado[i] = detectAndDisplay(resized_frame); //Vetor para garantir a ordenação dos frames processados
-			
-			#pragma omp ordered //Para reproduzir frames processados em ordem
-			{
-				imshow(window_name, videoProcessado[i]);
+			Mat show;
+			if(videoProcessado.size() > j && j < totalframes){
+				show = videoProcessado[j];
+				imshow(window_name, show);
+				j++;
+			}else if(j >= totalframes){
+				printando = 0;
 			}
 			
 			char c = waitKey(1);
 			if(c == 32){
-				exit(1);
+				break;
 			} //Interrompe deteccao de faces e reproducao do video ao clicar espaco
 		}
 
