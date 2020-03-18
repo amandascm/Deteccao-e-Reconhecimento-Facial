@@ -83,6 +83,10 @@ void detectAndDisplay(frameEindice pacote){
 	//rectangle(resized_frame, bodies[i], CV_RGB(0, 0, 255), 2);
 	//putText(src, "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
 
+	if((faces.size()+profile_faces.size())>7){
+		putText(resized_frame, "MULTIDAO", Point(10, 25), CV_FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
+	}
+
 	//Definir elipses para cada face ou perfil de face detectado
 	if(faces.size() > profile_faces.size()){
 
@@ -180,7 +184,7 @@ int main(int argc, char** argv){
 			return -1;
 		}
 
-    	equalizeHist(img, img);
+    	//equalizeHist(img, img);
 
 		face_cascade.detectMultiScale(img, rect, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
 
@@ -194,12 +198,13 @@ int main(int argc, char** argv){
 		resize(face, face, Size(im_width, im_height), 1.0, 1.0, INTER_CUBIC); //Padroniza tamanho das matrizes
 
 		imagens.push_back(face); //Registra faces no vetor de matrizes
-		//tags.push_back((i-1));
 		tags.push_back(id);
 		rect.clear();
+		imshow(window_name3, face);
+		char p = waitKey(1000);
 	}
 
-	imshow(window_name3, face); //Printa última face registrada
+	 //Printa última face registrada
 
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
@@ -224,13 +229,13 @@ int main(int argc, char** argv){
 				}
 
 		    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
-				const float scale = 2.9;
+				const float scale = 2.5;
 				Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
 				resize( frame, resized_frame, resized_frame.size() );
 
 				//Converte para escala cinza, ajusta brilho e equaliza frame
 	    		cvtColor(resized_frame, resized_frame, COLOR_BGR2GRAY);
-	    		equalizeHist(resized_frame, resized_frame);
+	    		//equalizeHist(resized_frame, resized_frame);
 
 	    		frameEindice pacote;
 	    		pacote.frame = resized_frame;
