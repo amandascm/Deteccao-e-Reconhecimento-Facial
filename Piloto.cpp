@@ -12,10 +12,9 @@
 #include <vector>
 #include <queue>
 #include <thread>
+#include <mutex>
 #include <chrono>
 #include <ctime>
-
-//#include <omp.h>
 
 using namespace std;
 using namespace cv;
@@ -42,6 +41,8 @@ double thresh = 123.0;
 vector<Mat> videoProcessado;
 
 Ptr<face::FaceRecognizer> reconhecer = face::createEigenFaceRecognizer(0, thresh);
+
+std::mutex mutex1;
 
 struct frameEindice
 {
@@ -80,9 +81,11 @@ void detectAndDisplay(frameEindice pacote){
     face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(40, 40));
 	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(40, 40));
 
+	mutex1.lock();
 	totalfaces += faces.size();
 	totalprofilefaces += profile_faces.size();
 	total = total + faces.size() + profile_faces.size();
+	mutex1.unlock();
 
 	//Para manter elipses coloridas se o frame estiver em escala cinza
 	//cvtColor(resized_frame, resized_frame, COLOR_GRAY2BGR);
