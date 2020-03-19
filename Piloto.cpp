@@ -42,7 +42,7 @@ vector<Mat> videoProcessado;
 
 Ptr<face::FaceRecognizer> reconhecer = face::createEigenFaceRecognizer(0, thresh);
 
-std::mutex mutex1;
+std::mutex mutex1, mutex2;
 
 struct frameEindice
 {
@@ -65,7 +65,9 @@ int reconhece(Mat resized_frame, Rect face){
 	int predicao = reconhecer->predict(resizedmatface);
 
 	if(predicao == id){
+		mutex2.lock();
 		imshow(window_name2, resizedmatface);
+		mutex2.unlock();
 		return 1;
 	}else{
 		return 0;
