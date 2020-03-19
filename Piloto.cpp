@@ -27,12 +27,14 @@ CascadeClassifier face_cascade;
 CascadeClassifier profile_face_cascade;
 
 //Janelas
-String window_name = "Detecta faces";
+String window_name = "Detecta faces, reconhece face e identifica multidao";
 String window_name2 = "Reconhecid@";
 String window_name3 = "Registrad@";
 
+//Variaveis globais
 long int totalfaces = 0, totalprofilefaces = 0, total = 0;
-int im_width, im_height, id = 23;
+int im_width, im_height, id = 23, minMultidao = 10;
+float areaResizedFrame = 0, razao = 0.2;
 double thresh = 123.0;
 vector<Mat> videoProcessado;
 
@@ -44,7 +46,9 @@ struct frameEindice
 	int indice;	
 };
 
+//FUNCOES
 //------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 int reconhece(Mat resized_frame, Rect face){
 	Rect rectface = face;
@@ -70,23 +74,20 @@ void detectAndDisplay(frameEindice pacote){
 	Mat resized_frame = pacote.frame;
 
     //Detecta faces
-    face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
-	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
+    face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(40, 40));
+	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(40, 40));
 
 	totalfaces += faces.size();
 	totalprofilefaces += profile_faces.size();
 	total = total + faces.size() + profile_faces.size();
 
 	//Para manter elipses coloridas se o frame estiver em escala cinza
-	cvtColor(resized_frame, resized_frame, COLOR_GRAY2BGR);
+	//cvtColor(resized_frame, resized_frame, COLOR_GRAY2BGR);
 
 	//rectangle(resized_frame, bodies[i], CV_RGB(0, 0, 255), 2);
 	//putText(src, "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
 
-	if((faces.size()+profile_faces.size())>7){
-		putText(resized_frame, "MULTIDAO", Point(10, 25), CV_FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
-	}
-
+	float areaFaces = 0;
 	//Definir elipses para cada face ou perfil de face detectado
 	if(faces.size() > profile_faces.size()){
 
@@ -99,14 +100,18 @@ void detectAndDisplay(frameEindice pacote){
 				}else{ //Elipse azul
         			ellipse(resized_frame, center, Size(profile_faces[i].width/2, profile_faces[i].height/2), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
 				}
+
+				areaFaces += profile_faces[i].width * profile_faces[i].height;
 			}
-			//Foi reconhecid@?
+
 			Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
+			//Foi reconhecid@?
 			if(reconhece(resized_frame, faces[i])){ //Elipse verde
         		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
         	}else{ //Elipse rosa
 	        	ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
     		}
+    		areaFaces += faces[i].width * faces[i].height;
     	}
 	} else{
 		for(size_t i = 0; i < profile_faces.size(); i++){
@@ -118,6 +123,7 @@ void detectAndDisplay(frameEindice pacote){
 	        	}else{ //Elipse rosa
 	        		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
 				}
+				areaFaces += faces[i].width * faces[i].height;
 			}
 			Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 			//Foi reconhecid@?
@@ -126,13 +132,19 @@ void detectAndDisplay(frameEindice pacote){
 			}else{ //Elipse azul
 	        	ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
     		}
-    	}		
+    		areaFaces += profile_faces[i].width * profile_faces[i].height;
+    	}
+	}
+
+	if((faces.size() + profile_faces.size()) > minMultidao && (areaFaces / areaResizedFrame) >= razao){
+		putText(resized_frame, "MULTIDAO", Point(10, 25), CV_FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
 	}
 
 	while((videoProcessado.size() < pacote.indice)){}
 	videoProcessado.push_back(resized_frame);
 }
 
+//MAIN
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 
 int main(int argc, char** argv){
@@ -200,66 +212,67 @@ int main(int argc, char** argv){
 		imagens.push_back(face); //Registra faces no vetor de matrizes
 		tags.push_back(id);
 		rect.clear();
-		imshow(window_name3, face);
+
+		imshow(window_name3, face); //Printa cada face registrada por no mínimo 1 segundo
 		char p = waitKey(1000);
 	}
-
-	 //Printa última face registrada
 
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
 
 
-    //Mat videoProcessado[totalframes];
-	    //Lê vídeo frame por frame, detecta faces e reconhece
-    	int i = 0;
-    	int j = 0;
-    	int lendo = 1;
-    	int printando = 1;
+    int i = 0;
+    int j = 0;
+    int lendo = 1;
+    int printando = 1;
+    int pausa = 1;
+    //Lê vídeo frame por frame, detecta faces, reconhece face e projeta frames ja processados na janela
+   	while(lendo || printando){
+   		if(i < totalframes){
+    		capture.read(frame);
+    		i++;
 
-    	while(lendo || printando){
-
-    		if(i < totalframes){
-	    		capture.read(frame);
-	    		i++;
-
-	    		if(frame.empty()){
-					printf( "Impossivel ler frame\n" );
-					break;
-				}
-
-		    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
-				const float scale = 2.5;
-				Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
-				resize( frame, resized_frame, resized_frame.size() );
-
-				//Converte para escala cinza, ajusta brilho e equaliza frame
-	    		cvtColor(resized_frame, resized_frame, COLOR_BGR2GRAY);
-	    		//equalizeHist(resized_frame, resized_frame);
-
-	    		frameEindice pacote;
-	    		pacote.frame = resized_frame;
-	    		pacote.indice = (i-1); //Declara struct com indice e frame a ser processado
-
-				thread (detectAndDisplay, pacote).detach();
-			}else{
-				lendo = 0;
-			}
-
-			Mat show;
-			if(videoProcessado.size() > j && j < totalframes){
-				show = videoProcessado[j];
-				imshow(window_name, show);
-				j++;
-			}else if(j >= totalframes){
-				printando = 0;
-			}
-			
-			char c = waitKey(1);
-			if(c == 32){
+    		if(frame.empty()){
+				printf( "Impossivel ler frame\n" );
 				break;
-			} //Interrompe deteccao de faces e reproducao do video ao clicar espaco
+			}
+
+	    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
+			const float scale = 2.5;
+			Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
+			resize( frame, resized_frame, resized_frame.size() );
+			areaResizedFrame = resized_frame.rows * resized_frame.cols; //Area do frame a ser processado
+
+    		frameEindice pacote;
+    		pacote.frame = resized_frame;
+    		pacote.indice = (i-1); //Declara struct com indice e frame a ser processado
+
+			thread (detectAndDisplay, pacote).detach(); //nova linha de execucao para processar frame
+		}else{
+			lendo = 0;
 		}
+
+		Mat show;
+		if(videoProcessado.size() > j && j < totalframes && pausa == 0){
+			show = videoProcessado[j];
+			imshow(window_name, show);
+			j++;
+		}else if(j >= totalframes){
+			printando = 0;
+		}
+
+		char c = waitKey(1);
+		if(c == 32){ //pausa/play ao clicar espaco
+			if(pausa){
+				pausa = 0;
+			}else if(pausa == 0){
+				pausa = 1;
+			}
+		}else if(c == 105){ //Interrompe processamento e exibicao do video ao clicar i
+			lendo = 0;
+			printando = 0;
+		}
+	}
 
 	destroyAllWindows();
 	capture.release(); 
