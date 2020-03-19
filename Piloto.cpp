@@ -12,11 +12,14 @@
 #include <vector>
 #include <queue>
 #include <thread>
+#include <chrono>
+#include <ctime>
 
-#include <omp.h>
+//#include <omp.h>
 
 using namespace std;
 using namespace cv;
+using namespace std::chrono;
 
 //Haarcascades
 String face_cascade_name = "haarcascade_frontalface_alt.xml";
@@ -34,7 +37,7 @@ String window_name3 = "Registrad@";
 //Variaveis globais
 long int totalfaces = 0, totalprofilefaces = 0, total = 0;
 int im_width, im_height, id = 23, minMultidao = 10;
-float areaResizedFrame = 0, razao = 0.2;
+float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.5;
 double thresh = 123.0;
 vector<Mat> videoProcessado;
 
@@ -136,7 +139,7 @@ void detectAndDisplay(frameEindice pacote){
     	}
 	}
 
-	if((faces.size() + profile_faces.size()) > minMultidao && (areaFaces / areaResizedFrame) >= razao){
+	if((faces.size() + profile_faces.size()) > minMultidao && (areaFaces / areaResizedFrame) >= razaoFacesFrame){
 		putText(resized_frame, "MULTIDAO", Point(10, 25), CV_FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
 	}
 
@@ -157,6 +160,7 @@ int main(int argc, char** argv){
 	vector<Mat> imagens; //Vetor de imagens para treinar o algoritmo reconhecedor de faces
 	vector<int> tags; //Vetor de tags para o reconhecedor de faces
 
+
     if(!face_cascade.load(face_cascade_name)){
     	printf("Error ao carregar face cascade\n");
     	return -1;
@@ -174,6 +178,7 @@ int main(int argc, char** argv){
 
     fps = capture.get(CV_CAP_PROP_FPS);
     cout << "fps do video: " << fps << endl;
+
 
     totalframes = (capture.get(CAP_PROP_FRAME_COUNT));
 	cout << "total de frames no video: " << totalframes << endl;
@@ -220,12 +225,17 @@ int main(int argc, char** argv){
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
 
-
+    std::chrono::time_point<std::chrono::system_clock> comeco, fim;
+    double intervalo;
+    int dif;
     int i = 0;
     int j = 0;
     int lendo = 1;
     int printando = 1;
-    int pausa = 1;
+    int pausa = 1; //Clicar espaco para iniciar exibicao
+    Mat show;
+    char c;
+    float tempoEntreFrames = 1000 / fps;
     //Lê vídeo frame por frame, detecta faces, reconhece face e projeta frames ja processados na janela
    	while(lendo || printando){
    		if(i < totalframes){
@@ -238,12 +248,11 @@ int main(int argc, char** argv){
 			}
 
 	    	//Redimensiona frame para reduzir o delay na reproducao do video durante a deteccao
-			const float scale = 2.5;
 			Mat resized_frame(cvRound(frame.rows / scale), cvRound(frame.cols / scale), CV_8UC1);
 			resize( frame, resized_frame, resized_frame.size() );
 			areaResizedFrame = resized_frame.rows * resized_frame.cols; //Area do frame a ser processado
 
-    		frameEindice pacote;
+    		frameEindice pacote; //Struct contem Mat e Int
     		pacote.frame = resized_frame;
     		pacote.indice = (i-1); //Declara struct com indice e frame a ser processado
 
@@ -252,23 +261,42 @@ int main(int argc, char** argv){
 			lendo = 0;
 		}
 
-		Mat show;
+		//Ha frames processados para exibicao e video nao esta pausado?
 		if(videoProcessado.size() > j && j < totalframes && pausa == 0){
 			show = videoProcessado[j];
-			imshow(window_name, show);
+			if(j == 0){
+				imshow(window_name, show);
+				comeco = high_resolution_clock::now(); //Le tempo para comparar com o do proximo frame
+			}else{
+				fim = high_resolution_clock::now(); //Le tempo para comparar com o do frame anterior
+
+				//Intervalo de tempo entre exibicao de dois frames consecutivos
+				intervalo = std::chrono::duration_cast<std::chrono::milliseconds>(fim-comeco).count();
+
+				//Eh menor que o tempo necessario para manter o FPS original do video?
+				if(intervalo < tempoEntreFrames){
+					dif = tempoEntreFrames - intervalo;
+					std::this_thread::sleep_for(std::chrono::milliseconds(dif)); //Espera para atingir FPS correto
+					imshow(window_name, show);
+				}else{
+					imshow(window_name, show);
+				}
+				comeco = high_resolution_clock::now();
+			}
 			j++;
+		//Fim dos frames processados?
 		}else if(j >= totalframes){
 			printando = 0;
 		}
 
-		char c = waitKey(1);
-		if(c == 32){ //pausa/play ao clicar espaco
+		c = waitKey(1);
+		if(c == 32){ //Da play ou pausa ao clicar espaco
 			if(pausa){
 				pausa = 0;
 			}else if(pausa == 0){
 				pausa = 1;
 			}
-		}else if(c == 105){ //Interrompe processamento e exibicao do video ao clicar i
+		}else if(c == 105){ //Interrompe processamento de frames e exibicao do video ao clicar i
 			lendo = 0;
 			printando = 0;
 		}
