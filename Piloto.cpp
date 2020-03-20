@@ -35,12 +35,12 @@ String window_name3 = "Registrad@";
 
 //Variaveis globais
 long int totalfaces = 0, totalprofilefaces = 0, total = 0;
-int im_width, im_height, id = 23, minMultidao = 10;
+int im_width, im_height, id = 24, minMultidao = 10;
 float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.5;
 double thresh = 123.0;
 vector<Mat> videoProcessado;
 
-Ptr<face::FaceRecognizer> reconhecer = face::createEigenFaceRecognizer(0, thresh);
+Ptr<face::FaceRecognizer> reconhecer = face::createFisherFaceRecognizer(0, thresh);
 
 std::mutex mutex1, mutex2;
 
@@ -197,7 +197,7 @@ int main(int argc, char** argv){
 	/*Lê os nomes das imagens (de uma mesma pessoa) digitados no terminal (dps do ./exe)
 	Converte cor, encontra face, redimensiona e insere nos vetores imagens
 	Insere id's no vetor tags*/
-	for(int k=1; k<argc; k++){
+	for(int k=1; k<argc; k+=2){
 
 		img = imread(argv[k], IMREAD_GRAYSCALE);
 
@@ -219,12 +219,15 @@ int main(int argc, char** argv){
 
 		resize(face, face, Size(im_width, im_height), 1.0, 1.0, INTER_CUBIC); //Padroniza tamanho das matrizes
 
+		char* tagchar = argv[k+1];
+		int tag = atoi(tagchar);
+
 		imagens.push_back(face); //Registra faces no vetor de matrizes
-		tags.push_back(id);
+		tags.push_back(tag);
 		rect.clear();
 
 		imshow(window_name3, face); //Printa cada face registrada por no mínimo 1 segundo
-		char p = waitKey(1000);
+		char p = waitKey(100);
 	}
 
 	//Treina o reconhecedor de faces com os vetores imagens e tags
@@ -237,7 +240,7 @@ int main(int argc, char** argv){
     int j = 0;
     int lendo = 1;
     int printando = 1;
-    int pausa = 1; //Clicar espaco para iniciar exibicao
+    int pausa = 0; //Clicar espaco para pausar exibicao
     Mat show;
     char c;
     float tempoEntreFrames = 1000 / fps;
