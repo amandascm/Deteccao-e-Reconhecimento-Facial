@@ -35,19 +35,20 @@ String window_name3 = "Registrad@";
 
 //Variaveis globais
 long int totalfaces = 0, totalprofilefaces = 0, total = 0;
-int im_width, im_height, id = 24, minMultidao = 10;
+int im_width, im_height, id = 23, minMultidao = 10;
 float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.5;
 double thresh = 123.0;
+Size size(40,40);
 vector<Mat> videoProcessado;
 
 Ptr<face::FaceRecognizer> reconhecer = face::createFisherFaceRecognizer(0, thresh);
 
-std::mutex mutex1, mutex2;
+std::mutex mutex1, mutex2, mutex3;
 
 struct frameEindice
 {
 	Mat frame;
-	int indice;	
+	int indice;
 };
 
 //FUNCOES
@@ -80,20 +81,14 @@ void detectAndDisplay(frameEindice pacote){
 	Mat resized_frame = pacote.frame;
 
     //Detecta faces
-    face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(40, 40));
-	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(40, 40));
+    face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, size);
+	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, size);
 
 	mutex1.lock();
 	totalfaces += faces.size();
 	totalprofilefaces += profile_faces.size();
 	total = total + faces.size() + profile_faces.size();
 	mutex1.unlock();
-
-	//Para manter elipses coloridas se o frame estiver em escala cinza
-	//cvtColor(resized_frame, resized_frame, COLOR_GRAY2BGR);
-
-	//rectangle(resized_frame, bodies[i], CV_RGB(0, 0, 255), 2);
-	//putText(src, "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
 
 	float areaFaces = 0;
 	//Definir elipses para cada face ou perfil de face detectado
@@ -104,6 +99,7 @@ void detectAndDisplay(frameEindice pacote){
 				Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 				//Foi reconhecid@?
 				if(reconhece(resized_frame, profile_faces[i])){ //Elipse verde
+					//putText(resized_frame, "Identificad@", Point(profile_faces[i].x - profile_faces[i].height/2, profile_faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
         			ellipse(resized_frame, center, Size(profile_faces[i].width/2, profile_faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 				}else{ //Elipse azul
         			ellipse(resized_frame, center, Size(profile_faces[i].width/2, profile_faces[i].height/2), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
@@ -115,7 +111,7 @@ void detectAndDisplay(frameEindice pacote){
 			Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
 			//Foi reconhecid@?
 			if(reconhece(resized_frame, faces[i])){ //Elipse verde
-        		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
+				ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
         	}else{ //Elipse rosa
 	        	ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
     		}
@@ -127,7 +123,7 @@ void detectAndDisplay(frameEindice pacote){
 				Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
 				//Foi reconhecid@?
 				if(reconhece(resized_frame, faces[i])){ //Elipse verde
-	        		ellipse(resized_frame, center, Size( faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
+					ellipse(resized_frame, center, Size( faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 	        	}else{ //Elipse rosa
 	        		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
 				}
@@ -136,7 +132,7 @@ void detectAndDisplay(frameEindice pacote){
 			Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 			//Foi reconhecid@?
 			if(reconhece(resized_frame, profile_faces[i])){ //Elipse verde
-        		ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
+				ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 			}else{ //Elipse azul
 	        	ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
     		}
@@ -148,8 +144,13 @@ void detectAndDisplay(frameEindice pacote){
 		putText(resized_frame, "MULTIDAO", Point(10, 25), CV_FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
 	}
 
-	while((videoProcessado.size() < pacote.indice)){}
+	mutex3.lock();
+	while((videoProcessado.size() < pacote.indice)){
+		mutex3.unlock();
+		mutex3.lock();
+	}
 	videoProcessado.push_back(resized_frame);
+	mutex3.unlock();
 }
 
 //MAIN
@@ -158,13 +159,8 @@ void detectAndDisplay(frameEindice pacote){
 int main(int argc, char** argv){
 
 	VideoCapture capture("video.mp4");
-	Mat frame, img, face;
-	vector<Rect> rect;
 	double fps;
 	int totalframes;
-	vector<Mat> imagens; //Vetor de imagens para treinar o algoritmo reconhecedor de faces
-	vector<int> tags; //Vetor de tags para o reconhecedor de faces
-
 
     if(!face_cascade.load(face_cascade_name)){
     	printf("Error ao carregar face cascade\n");
@@ -188,50 +184,66 @@ int main(int argc, char** argv){
     totalframes = (capture.get(CAP_PROP_FRAME_COUNT));
 	cout << "total de frames no video: " << totalframes << endl;
 
-	//Confere se recebeu strings com nomes das imagens
-	if( argc < 2 ){
-		cout << "Nao ha imagens suficientes, argc = " << argc << endl;
+	//Confere se recebeu string com nome do arquivo txt (contendo imagens e tags)
+	if(argc < 2){
+		cout << "Nao ha parametros suficientes, argc = " << argc << endl;
 		return -1;
 	}
 
-	/*Lê os nomes das imagens (de uma mesma pessoa) digitados no terminal (dps do ./exe)
-	Converte cor, encontra face, redimensiona e insere nos vetores imagens
-	Insere id's no vetor tags*/
-	for(int k=1; k<argc; k+=2){
+	/*Lê os nomes das imagens e suas tags em arquivo txt
+	Converte cor, encontra face, redimensiona e insere no vetor imagens
+	Insere tag no vetor tags*/
+	FILE * imgtag;
+	imgtag = fopen(argv[1], "rt");
 
-		img = imread(argv[k], IMREAD_GRAYSCALE);
+	if(imgtag == NULL){
+		cout << "Impossivel ler arquivo\n";
+		return -1;
+	}
+
+	char nomeimg[20];
+	int tag;
+	int k = 0;
+	Mat img, face;
+	vector<Rect> rect;
+	vector<Mat> imagens; //Vetor de imagens para treinar o algoritmo reconhecedor de faces
+	vector<int> tags; //Vetor de tags para o reconhecedor de faces
+
+	while(fscanf(imgtag, "%s%d", nomeimg, &tag) != EOF){
+
+		img = imread(nomeimg, IMREAD_GRAYSCALE);
 
 		if(img.empty()){
 			cout << "Impossivel ler imagem" << endl;
 			return -1;
 		}
-
     	//equalizeHist(img, img);
 
 		face_cascade.detectMultiScale(img, rect, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
 
 		face = img(rect[0]);
 
-		if(k==1){
+		if(k==0){
 			im_width = face.cols;
 			im_height = face.rows;
 		}
 
 		resize(face, face, Size(im_width, im_height), 1.0, 1.0, INTER_CUBIC); //Padroniza tamanho das matrizes
 
-		char* tagchar = argv[k+1];
-		int tag = atoi(tagchar);
-
 		imagens.push_back(face); //Registra faces no vetor de matrizes
 		tags.push_back(tag);
 		rect.clear();
 
-		imshow(window_name3, face); //Printa cada face registrada por no mínimo 1 segundo
-		char p = waitKey(100);
+		if(tag == id){
+			imshow(window_name3, face); //Printa a face registrada correspondente ao ID procurado
+		}
+		k++;
 	}
+	fclose (imgtag);
 
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
+
 
     std::chrono::time_point<std::chrono::system_clock> comeco, fim;
     double intervalo;
@@ -241,7 +253,7 @@ int main(int argc, char** argv){
     int lendo = 1;
     int printando = 1;
     int pausa = 0; //Clicar espaco para pausar exibicao
-    Mat show;
+    Mat frame, show;
     char c;
     float tempoEntreFrames = 1000 / fps;
     //Lê vídeo frame por frame, detecta faces, reconhece face e projeta frames ja processados na janela
