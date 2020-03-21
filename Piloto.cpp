@@ -43,7 +43,7 @@ vector<Mat> videoProcessado;
 
 Ptr<face::FaceRecognizer> reconhecer = face::createFisherFaceRecognizer(0, thresh);
 
-std::mutex mutex1, mutex2, mutex3;
+std::mutex mutex1, mutex2, mutex3, mutex4;
 
 struct frameEindice
 {
@@ -53,7 +53,46 @@ struct frameEindice
 
 //FUNCOES
 //------------------------------------------------------------------------------------------------------------------------------------------------------
+void CorPrincipal(Mat face){
+	Mat data;
+	face.convertTo(data, CV_32F);
+	Vec3f intensidade;
+	float pixels = 0;
 
+	float azul = 0, verde = 0, vermelho = 0;
+
+	long int i, j;
+	for(i = 0; i < data.cols; i ++){
+		for(j = 0; j < data.rows; j++){
+			intensidade = data.at<Vec3f>(j, i);
+			if(intensidade.val[0] > 20 && intensidade.val[1] > 40 && intensidade.val[2] > 80){ //tonalidade da cor da pele
+				azul += intensidade.val[0];
+				verde += intensidade.val[1];
+				vermelho += intensidade.val[2];
+				pixels++;
+			}
+		}
+	}
+
+	azul = azul/pixels;
+	verde = verde/pixels;
+	vermelho = vermelho/pixels;
+	//intensidade.val[0] = azul;
+	//intensidade.val[1] = verde;
+	//intensidade.val[2] = vermelho;
+
+	//cout << intensidade << endl;
+
+	data.convertTo(data, CV_8UC3);
+	Rect retang(0,0,80,80);
+	if(data.rows > 80 && data.cols > 80){
+		rectangle(data, retang, Scalar(azul, verde, vermelho), -1);
+		Mat exibecor (data, Rect(0, 0, 80, 80));
+		mutex4.lock();
+		imshow("Cor", exibecor);
+		mutex4.unlock();
+	}
+}
 
 int reconhece(Mat resized_frame, Rect face){
 	Rect rectface = face;
@@ -99,6 +138,7 @@ void detectAndDisplay(frameEindice pacote){
 				Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 				//Foi reconhecid@?
 				if(reconhece(resized_frame, profile_faces[i])){ //Elipse verde
+					CorPrincipal(resized_frame(profile_faces[i]));
 					//putText(resized_frame, "Identificad@", Point(profile_faces[i].x - profile_faces[i].height/2, profile_faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
         			ellipse(resized_frame, center, Size(profile_faces[i].width/2, profile_faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 				}else{ //Elipse azul
@@ -111,6 +151,7 @@ void detectAndDisplay(frameEindice pacote){
 			Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
 			//Foi reconhecid@?
 			if(reconhece(resized_frame, faces[i])){ //Elipse verde
+				CorPrincipal(resized_frame(faces[i]));
 				ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
         	}else{ //Elipse rosa
 	        	ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
@@ -123,6 +164,7 @@ void detectAndDisplay(frameEindice pacote){
 				Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
 				//Foi reconhecid@?
 				if(reconhece(resized_frame, faces[i])){ //Elipse verde
+					CorPrincipal(resized_frame(faces[i]));
 					ellipse(resized_frame, center, Size( faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 	        	}else{ //Elipse rosa
 	        		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
@@ -132,6 +174,7 @@ void detectAndDisplay(frameEindice pacote){
 			Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 			//Foi reconhecid@?
 			if(reconhece(resized_frame, profile_faces[i])){ //Elipse verde
+				CorPrincipal(resized_frame(profile_faces[i]));
 				ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 			}else{ //Elipse azul
 	        	ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
@@ -245,15 +288,15 @@ int main(int argc, char** argv){
     reconhecer->train(imagens, tags);
 
 
-    std::chrono::time_point<std::chrono::system_clock> comeco, fim;
-    double intervalo;
-    int dif;
-    int i = 0;
-    int j = 0;
-    int lendo = 1;
-    int printando = 1;
-    int pausa = 0; //Clicar espaco para pausar exibicao
-    Mat frame, show;
+	std::chrono::time_point<std::chrono::system_clock> comeco, fim;
+	double intervalo;
+	int dif;
+	int i = 0;
+	int j = 0;
+	int lendo = 1;
+	int printando = 1;
+	int pausa = 0; //Clicar espaco para pausar exibicao
+	Mat frame, show;
     char c;
     float tempoEntreFrames = 1000 / fps;
     //Lê vídeo frame por frame, detecta faces, reconhece face e projeta frames ja processados na janela
