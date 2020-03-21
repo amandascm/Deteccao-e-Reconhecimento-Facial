@@ -40,6 +40,7 @@ float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.5;
 double thresh = 123.0;
 Size size(40,40);
 vector<Mat> videoProcessado;
+int intensidadesFaces[256] = {};
 
 Ptr<face::FaceRecognizer> reconhecer = face::createFisherFaceRecognizer(0, thresh);
 
@@ -56,7 +57,7 @@ struct frameEindice
 void CorPrincipal(Mat face){
 	Mat data;
 	face.convertTo(data, CV_32F);
-	Vec3f intensidade;
+	Vec3f cor;
 	float pixels = 0;
 
 	float azul = 0, verde = 0, vermelho = 0;
@@ -64,11 +65,11 @@ void CorPrincipal(Mat face){
 	long int i, j;
 	for(i = 0; i < data.cols; i ++){
 		for(j = 0; j < data.rows; j++){
-			intensidade = data.at<Vec3f>(j, i);
-			if(intensidade.val[0] > 20 && intensidade.val[1] > 40 && intensidade.val[2] > 80){ //tonalidade da cor da pele
-				azul += intensidade.val[0];
-				verde += intensidade.val[1];
-				vermelho += intensidade.val[2];
+			cor = data.at<Vec3f>(j, i);
+			if(cor.val[0] > 20 && cor.val[1] > 40 && cor.val[2] > 80){ //tonalidade da cor da pele
+				azul += cor.val[0];
+				verde += cor.val[1];
+				vermelho += cor.val[2];
 				pixels++;
 			}
 		}
@@ -77,20 +78,29 @@ void CorPrincipal(Mat face){
 	azul = azul/pixels;
 	verde = verde/pixels;
 	vermelho = vermelho/pixels;
-	//intensidade.val[0] = azul;
-	//intensidade.val[1] = verde;
-	//intensidade.val[2] = vermelho;
+	//cor.val[0] = azul;
+	//cor.val[1] = verde;
+	//cor.val[2] = vermelho;
 
-	//cout << intensidade << endl;
+	//cout << cor << endl;
 
 	data.convertTo(data, CV_8UC3);
-	Rect retang(0,0,80,80);
-	if(data.rows > 80 && data.cols > 80){
+	Rect retang(0,0,10,10);
+	if(data.rows > 10 && data.cols > 10){
 		rectangle(data, retang, Scalar(azul, verde, vermelho), -1);
-		Mat exibecor (data, Rect(0, 0, 80, 80));
+		Mat exibecor (data, Rect(0, 0, 10, 10));
+
+		cvtColor(exibecor, exibecor, COLOR_BGR2GRAY);
+
+		Scalar intensidade = exibecor.at<uchar>(0, 0); //Le intensidade de um pixel da matriz monocromatica
+		int i = intensidade.val[0];
 		mutex4.lock();
-		imshow("Cor", exibecor);
+		intensidadesFaces[i]++;
 		mutex4.unlock();
+
+		/*mutex4.lock();
+		imshow("Cor", exibecor);
+		mutex4.unlock();*/
 	}
 }
 
@@ -366,7 +376,7 @@ int main(int argc, char** argv){
 	}
 
 	destroyAllWindows();
-	capture.release(); 
+	capture.release();
 
 	cout << "faces: " << totalfaces << endl; //Total de faces (frontais)
 	cout << "profile faces: " << totalprofilefaces << endl; //Total de perfis de faces
