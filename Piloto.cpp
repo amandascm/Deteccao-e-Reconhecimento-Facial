@@ -86,18 +86,16 @@ void CorPrincipal(Mat face){
 	for(i = 0; i < data.cols; i ++){
 		for(j = 0; j < data.rows; j++){
 			cor = data.at<Vec3f>(j, i);
-			if(cor.val[0] > 20 && cor.val[1] > 40 && cor.val[2] > 80){ //Tonalidade da cor da pele
-				azul += cor.val[0];
-				verde += cor.val[1];
-				vermelho += cor.val[2];
-				pixels++;
-			}
+			azul += cor.val[0]*cor.val[0];
+			verde += cor.val[1]*cor.val[1];
+			vermelho += cor.val[2]*cor.val[2];
+			pixels++;
 		}
 	}
 
-	azul = azul/pixels;
-	verde = verde/pixels;
-	vermelho = vermelho/pixels;
+	azul = sqrt(azul/pixels);
+	verde = sqrt(verde/pixels);
+	vermelho = sqrt(vermelho/pixels);
 
 	data.convertTo(data, CV_8UC3); //3 canais (BGR)
 	Rect retang(0,0,10,10);
@@ -306,7 +304,7 @@ int main(int argc, char** argv){
     cout << "---------------- INSTRUCOES ----------------" << endl;
     cout << "Pressione espaco caso queira pausar/dar play no video;" << endl;
     cout << "Presione 'i' caso queira interromper o processamento e reproducao do video;" << endl;
-    cout << "Ao fim da execucao, verifique as estatisticas sobre tom da pele das faces detectadas no arquivo 'dados,txt'" << endl;
+    cout << "Ao fim da execucao, verifique as estatisticas sobre tom da pele das faces detectadas no arquivo 'dados,txt'." << endl;
 
 	std::chrono::time_point<std::chrono::system_clock> comeco, fim;
 	double intervalo;
