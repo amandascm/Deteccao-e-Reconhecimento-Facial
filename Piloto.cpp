@@ -4,6 +4,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/face.hpp>
+#include "opencv2/imgcodecs.hpp"
 
 #include <iostream>
 #include <stdlib.h>
@@ -29,22 +30,19 @@ CascadeClassifier face_cascade;
 CascadeClassifier profile_face_cascade;
 
 //Janelas
-String window_name = "Detecta faces, reconhece face e identifica multidao";
-String window_name2 = "Reconhecid@";
-String window_name3 = "Registrad@";
+String window_name = "Detecta faces, reconhece faces e identifica multidao";
 
 //Variaveis globais
-long int totalfaces = 0, totalprofilefaces = 0, total = 0;
-int im_width, im_height, id = 23, minMultidao = 10;
+int im_width, im_height, minMultidao = 10;
 float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.5;
 double thresh = 123.0;
 Size size(40,40);
 vector<Mat> videoProcessado;
-int intensidadesFaces[256] = {};
+float totalPorFaixa[8] = {}, totalContabilizado = 0;
 
 Ptr<face::FaceRecognizer> reconhecer = face::createFisherFaceRecognizer(0, thresh);
 
-std::mutex mutex1, mutex2, mutex3, mutex4;
+std::mutex mutex1, mutex2;
 
 struct frameEindice
 {
@@ -54,6 +52,28 @@ struct frameEindice
 
 //FUNCOES
 //------------------------------------------------------------------------------------------------------------------------------------------------------
+void estatisticaTomDaPele(){
+	float p;
+	FILE * dados;
+
+	dados = fopen("dados.txt", "wt");
+
+	if(dados == NULL){
+		cout << "Impossivel acessar arquivo\n";
+	}else{
+	//Calcula porcentagens por faixa de intensidade de cor da pele
+		for(int i = 0; i < 8; i++){
+			p = totalPorFaixa[i]/totalContabilizado;
+			if(p > 0.0009){
+				p = p*100;
+				fprintf(dados, "%.1f por cento das faces detectadas possuem intensidade da cor da pele entre %d e %d\n", p, i*32, i*32+32);
+			}
+		}
+
+		fclose (dados);
+	}
+}
+
 void CorPrincipal(Mat face){
 	Mat data;
 	face.convertTo(data, CV_32F);
@@ -66,7 +86,7 @@ void CorPrincipal(Mat face){
 	for(i = 0; i < data.cols; i ++){
 		for(j = 0; j < data.rows; j++){
 			cor = data.at<Vec3f>(j, i);
-			if(cor.val[0] > 20 && cor.val[1] > 40 && cor.val[2] > 80){ //tonalidade da cor da pele
+			if(cor.val[0] > 20 && cor.val[1] > 40 && cor.val[2] > 80){ //Tonalidade da cor da pele
 				azul += cor.val[0];
 				verde += cor.val[1];
 				vermelho += cor.val[2];
@@ -78,29 +98,26 @@ void CorPrincipal(Mat face){
 	azul = azul/pixels;
 	verde = verde/pixels;
 	vermelho = vermelho/pixels;
-	//cor.val[0] = azul;
-	//cor.val[1] = verde;
-	//cor.val[2] = vermelho;
 
-	//cout << cor << endl;
-
-	data.convertTo(data, CV_8UC3);
+	data.convertTo(data, CV_8UC3); //3 canais (BGR)
 	Rect retang(0,0,10,10);
 	if(data.rows > 10 && data.cols > 10){
 		rectangle(data, retang, Scalar(azul, verde, vermelho), -1);
 		Mat exibecor (data, Rect(0, 0, 10, 10));
 
-		cvtColor(exibecor, exibecor, COLOR_BGR2GRAY);
+		cvtColor(exibecor, exibecor, COLOR_BGR2GRAY); //1 canal
 
 		Scalar intensidade = exibecor.at<uchar>(0, 0); //Le intensidade de um pixel da matriz monocromatica
 		int i = intensidade.val[0];
-		mutex4.lock();
-		intensidadesFaces[i]++;
-		mutex4.unlock();
+		int faixa = 32;
+		int destino;
 
-		/*mutex4.lock();
-		imshow("Cor", exibecor);
-		mutex4.unlock();*/
+		destino = i/faixa;
+
+		mutex2.lock();
+		totalPorFaixa[destino]++;
+		totalContabilizado++;
+		mutex2.unlock();
 	}
 }
 
@@ -114,11 +131,8 @@ int reconhece(Mat resized_frame, Rect face){
 
 	int predicao = reconhecer->predict(resizedmatface);
 
-	if(predicao == id){
-		mutex2.lock();
-		imshow(window_name2, resizedmatface);
-		mutex2.unlock();
-		return 1;
+	if(predicao >= 0){ //Esta nos registros
+		return predicao;
 	}else{
 		return 0;
 	}
@@ -133,23 +147,21 @@ void detectAndDisplay(frameEindice pacote){
     face_cascade.detectMultiScale(resized_frame, faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, size);
 	profile_face_cascade.detectMultiScale(resized_frame, profile_faces, 1.1, 3, 0|CASCADE_SCALE_IMAGE, size);
 
-	mutex1.lock();
-	totalfaces += faces.size();
-	totalprofilefaces += profile_faces.size();
-	total = total + faces.size() + profile_faces.size();
-	mutex1.unlock();
-
 	float areaFaces = 0;
-	//Definir elipses para cada face ou perfil de face detectado
+	int idReconhecidoInt = -1;
+	std::string idReconhecidoStr = "";
+
+	//Definir elipses para cada face ou perfil de face detectado e/ou reconhecido
 	if(faces.size() > profile_faces.size()){
 
 		for(size_t i = 0; i < faces.size(); i++){
 			if(i < profile_faces.size()){ 
 				Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 				//Foi reconhecid@?
-				if(reconhece(resized_frame, profile_faces[i])){ //Elipse verde
-					CorPrincipal(resized_frame(profile_faces[i]));
-					//putText(resized_frame, "Identificad@", Point(profile_faces[i].x - profile_faces[i].height/2, profile_faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
+				idReconhecidoInt = reconhece(resized_frame, profile_faces[i]);
+				if(idReconhecidoInt > 0){ //Elipse verde
+					idReconhecidoStr = std::to_string(idReconhecidoInt);
+					putText(resized_frame, idReconhecidoStr, Point(profile_faces[i].x - profile_faces[i].height/2, profile_faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
         			ellipse(resized_frame, center, Size(profile_faces[i].width/2, profile_faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 				}else{ //Elipse azul
         			ellipse(resized_frame, center, Size(profile_faces[i].width/2, profile_faces[i].height/2), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
@@ -157,12 +169,14 @@ void detectAndDisplay(frameEindice pacote){
 
 				areaFaces += profile_faces[i].width * profile_faces[i].height;
 			}
-
+			CorPrincipal(resized_frame(faces[i]));
 			Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
 			//Foi reconhecid@?
-			if(reconhece(resized_frame, faces[i])){ //Elipse verde
-				CorPrincipal(resized_frame(faces[i]));
-				ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
+			idReconhecidoInt = reconhece(resized_frame, faces[i]);
+			if(idReconhecidoInt > 0){ //Elipse verde
+				idReconhecidoStr = std::to_string(idReconhecidoInt);
+				putText(resized_frame, idReconhecidoStr, Point(faces[i].x - faces[i].height/2, faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
+        		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
         	}else{ //Elipse rosa
 	        	ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
     		}
@@ -171,11 +185,14 @@ void detectAndDisplay(frameEindice pacote){
 	} else{
 		for(size_t i = 0; i < profile_faces.size(); i++){
 			if(i < faces.size()){
+				CorPrincipal(resized_frame(faces[i]));
 				Point center(faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2);
 				//Foi reconhecid@?
-				if(reconhece(resized_frame, faces[i])){ //Elipse verde
-					CorPrincipal(resized_frame(faces[i]));
-					ellipse(resized_frame, center, Size( faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
+				idReconhecidoInt = reconhece(resized_frame, faces[i]);
+				if(idReconhecidoInt > 0){ //Elipse verde
+					idReconhecidoStr = std::to_string(idReconhecidoInt);
+					putText(resized_frame, idReconhecidoStr, Point(faces[i].x - faces[i].height/2, faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
+        			ellipse(resized_frame, center, Size( faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 	        	}else{ //Elipse rosa
 	        		ellipse(resized_frame, center, Size(faces[i].width/2, faces[i].height/2), 0, 0, 360, Scalar(255, 0, 255), 2, 8, 0);
 				}
@@ -183,9 +200,11 @@ void detectAndDisplay(frameEindice pacote){
 			}
 			Point center(profile_faces[i].x + profile_faces[i].width/2, profile_faces[i].y + profile_faces[i].height/2);
 			//Foi reconhecid@?
-			if(reconhece(resized_frame, profile_faces[i])){ //Elipse verde
-				CorPrincipal(resized_frame(profile_faces[i]));
-				ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
+			idReconhecidoInt = reconhece(resized_frame, profile_faces[i]);
+			if(idReconhecidoInt > 0){ //Elipse verde
+				idReconhecidoStr = std::to_string(idReconhecidoInt);
+				putText(resized_frame, idReconhecidoStr, Point(profile_faces[i].x - profile_faces[i].height/2, profile_faces[i].y), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
+        		ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(0, 255, 0), 2, 8, 0);
 			}else{ //Elipse azul
 	        	ellipse(resized_frame, center, Size( profile_faces[i].width/2, profile_faces[i].height/2 ), 0, 0, 360, Scalar(255, 255, 0), 2, 8, 0);
     		}
@@ -197,13 +216,13 @@ void detectAndDisplay(frameEindice pacote){
 		putText(resized_frame, "MULTIDAO", Point(10, 25), CV_FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
 	}
 
-	mutex3.lock();
+	mutex1.lock();
 	while((videoProcessado.size() < pacote.indice)){
-		mutex3.unlock();
-		mutex3.lock();
+		mutex1.unlock();
+		mutex1.lock();
 	}
 	videoProcessado.push_back(resized_frame);
-	mutex3.unlock();
+	mutex1.unlock();
 }
 
 //MAIN
@@ -231,23 +250,14 @@ int main(int argc, char** argv){
     }
 
     fps = capture.get(CV_CAP_PROP_FPS);
-    cout << "fps do video: " << fps << endl;
-
 
     totalframes = (capture.get(CAP_PROP_FRAME_COUNT));
-	cout << "total de frames no video: " << totalframes << endl;
-
-	//Confere se recebeu string com nome do arquivo txt (contendo imagens e tags)
-	if(argc < 2){
-		cout << "Nao ha parametros suficientes, argc = " << argc << endl;
-		return -1;
-	}
 
 	/*Lê os nomes das imagens e suas tags em arquivo txt
 	Converte cor, encontra face, redimensiona e insere no vetor imagens
 	Insere tag no vetor tags*/
 	FILE * imgtag;
-	imgtag = fopen(argv[1], "rt");
+	imgtag = fopen("imgtag.txt", "rt");
 
 	if(imgtag == NULL){
 		cout << "Impossivel ler arquivo\n";
@@ -270,7 +280,6 @@ int main(int argc, char** argv){
 			cout << "Impossivel ler imagem" << endl;
 			return -1;
 		}
-    	//equalizeHist(img, img);
 
 		face_cascade.detectMultiScale(img, rect, 1.1, 3, 0|CASCADE_SCALE_IMAGE, Size(30, 30));
 
@@ -286,10 +295,6 @@ int main(int argc, char** argv){
 		imagens.push_back(face); //Registra faces no vetor de matrizes
 		tags.push_back(tag);
 		rect.clear();
-
-		if(tag == id){
-			imshow(window_name3, face); //Printa a face registrada correspondente ao ID procurado
-		}
 		k++;
 	}
 	fclose (imgtag);
@@ -297,6 +302,11 @@ int main(int argc, char** argv){
 	//Treina o reconhecedor de faces com os vetores imagens e tags
     reconhecer->train(imagens, tags);
 
+    //AVISOS AO USUARIO
+    cout << "---------------- INSTRUCOES ----------------" << endl;
+    cout << "Pressione espaco caso queira pausar/dar play no video;" << endl;
+    cout << "Presione 'i' caso queira interromper o processamento e reproducao do video;" << endl;
+    cout << "Ao fim da execucao, verifique as estatisticas sobre tom da pele das faces detectadas no arquivo 'dados,txt'" << endl;
 
 	std::chrono::time_point<std::chrono::system_clock> comeco, fim;
 	double intervalo;
@@ -378,9 +388,7 @@ int main(int argc, char** argv){
 	destroyAllWindows();
 	capture.release();
 
-	cout << "faces: " << totalfaces << endl; //Total de faces (frontais)
-	cout << "profile faces: " << totalprofilefaces << endl; //Total de perfis de faces
-	cout << "total: " << total << endl;
+	estatisticaTomDaPele();
 
 	return 0;
 }
