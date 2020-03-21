@@ -1,0 +1,6 @@
+0.2 por cento das faces detectadas possuem intensidade da cor da pele entre 0 e 32
+45.7 por cento das faces detectadas possuem intensidade da cor da pele entre 32 e 64
+49.9 por cento das faces detectadas possuem intensidade da cor da pele entre 64 e 96
+1.8 por cento das faces detectadas possuem intensidade da cor da pele entre 96 e 128
+2.1 por cento das faces detectadas possuem intensidade da cor da pele entre 128 e 160
+0.4 por cento das faces detectadas possuem intensidade da cor da pele entre 160 e 192

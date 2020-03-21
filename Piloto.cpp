@@ -233,7 +233,7 @@ int main(int argc, char** argv){
 	int totalframes;
 
     if(!face_cascade.load(face_cascade_name)){
-    	printf("Error ao carregar face cascade\n");
+    	printf("Erro ao carregar face cascade\n");
     	return -1;
     }
 
