@@ -1,7 +1,7 @@
 # Detecção, Reconhecimento, Rastreamento e Leitura de tom de pele facial + Identificação de Multidão
 
 
-Prjeto desenvolvido em C++ com uso da biblioteca OpenCV (versão 3.2.0)
+Projeto desenvolvido em C++ com uso da biblioteca OpenCV (versão 3.2.0)
 
 # Compilação e Execução
 Para compilar o projeto, instale a versão 3.2.0 da biblioteca OpenCV, mantenha todos os arquivos de formato .xml, .jpg, .txt e .mp4 no mesmo diretório do arquivo *Piloto.cpp* e digite no terminal (do diretório onde está localizado o projeto):
