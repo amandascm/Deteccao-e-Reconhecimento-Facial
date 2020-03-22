@@ -1,3 +1,0 @@
-/home/amanda/Documentos/MRC/PROJ2/C++/CMakeFiles/rebuild_cache.dir
-/home/amanda/Documentos/MRC/PROJ2/C++/CMakeFiles/Deteccao.dir
-/home/amanda/Documentos/MRC/PROJ2/C++/CMakeFiles/edit_cache.dir
