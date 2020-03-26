@@ -272,7 +272,7 @@ int main(int argc, char** argv){
 
 	while(fscanf(imgtag, "%s%d", nomeimg, &tag) != EOF){
 
-		char pathimg[50] = "entrada/";
+		char pathimg[50] = "entrada/imagens/";
 		strcat(pathimg, nomeimg);
 
 		img = imread(pathimg, IMREAD_GRAYSCALE);
