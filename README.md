@@ -12,6 +12,20 @@ Para executar, digite:
 
     $ ./Deteccao
 
+# Arquivos de entrada
+Presentes no diretório 'entrada':
+  - *imgtag.txt*
+        Contém nomes de arquivos jpg e números inteiros (tags/ID's associadas às pessoas retratadas nas imagens)
+  - *nomeDaImagem.jpg* 
+        Imagens citadas no arquivo *imgtag.txt*
+  - *video.mp4*
+        Vídeo a ser processado
+
+# Arquivos de saída
+Presentes no diretório 'saida':
+  - *dados.txt*
+        Contém as porcentagens de faces detectadas por faixa de intensidade de cor
+
 # O que acontece durante a execução?
   - Leitura de nomes de imagens e do ID de cada imagem no arquivo *imgtag.txt*
   - As faces presentes nas imagens e seus ID's são "registrados" e usados para treinar um algoritmo de reconhecimento facial
