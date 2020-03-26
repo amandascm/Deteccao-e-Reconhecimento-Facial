@@ -22,8 +22,8 @@ using namespace cv;
 using namespace std::chrono;
 
 //Haarcascades
-String face_cascade_name = "haarcascade_frontalface_alt.xml";
-String profile_face_cascade_name = "haarcascade_profileface.xml";
+String face_cascade_name = "haarcascades/haarcascade_frontalface_alt.xml";
+String profile_face_cascade_name = "haarcascades/haarcascade_profileface.xml";
 
 //Classificadores
 CascadeClassifier face_cascade;
@@ -56,7 +56,7 @@ void estatisticaTomDaPele(){
 	float p;
 	FILE * dados;
 
-	dados = fopen("dados.txt", "wt");
+	dados = fopen("saida/dados.txt", "wt");
 
 	if(dados == NULL){
 		cout << "Impossivel acessar arquivo\n";
@@ -228,7 +228,7 @@ void detectAndDisplay(frameEindice pacote){
 
 int main(int argc, char** argv){
 
-	VideoCapture capture("video.mp4");
+	VideoCapture capture("entrada/video.mp4");
 	double fps;
 	int totalframes;
 
@@ -255,7 +255,7 @@ int main(int argc, char** argv){
 	Converte cor, encontra face, redimensiona e insere no vetor imagens
 	Insere tag no vetor tags*/
 	FILE * imgtag;
-	imgtag = fopen("imgtag.txt", "rt");
+	imgtag = fopen("entrada/imgtag.txt", "rt");
 
 	if(imgtag == NULL){
 		cout << "Impossivel ler arquivo\n";
@@ -272,7 +272,10 @@ int main(int argc, char** argv){
 
 	while(fscanf(imgtag, "%s%d", nomeimg, &tag) != EOF){
 
-		img = imread(nomeimg, IMREAD_GRAYSCALE);
+		char pathimg[50] = "entrada/";
+		strcat(pathimg, nomeimg);
+
+		img = imread(pathimg, IMREAD_GRAYSCALE);
 
 		if(img.empty()){
 			cout << "Impossivel ler imagem" << endl;
@@ -337,7 +340,7 @@ int main(int argc, char** argv){
     		pacote.frame = resized_frame;
     		pacote.indice = (i-1); //Declara struct com indice e frame a ser processado
 
-			thread (detectAndDisplay, pacote).detach(); //nova linha de execucao para processar frame
+			thread (detectAndDisplay, pacote).detach(); //Nova linha de execucao para processar frame
 		}else{
 			lendo = 0;
 		}
