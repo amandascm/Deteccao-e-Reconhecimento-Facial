@@ -4,9 +4,10 @@
 Projeto desenvolvido em C++ com uso da biblioteca OpenCV (versão 3.2.0)
 
 # Compilação e Execução
-Para compilar o projeto, instale a versão 3.2.0 da biblioteca OpenCV, mantenha todos os arquivos deste repositório no mesmo diretório e digite no terminal (do diretório onde está localizado o projeto):
+Para compilar o projeto, instale a versão 3.2.0 da biblioteca OpenCV e a versão 3.10.2 do CMake, mantenha todos os arquivos deste repositório no mesmo diretório e digite no terminal (do diretório onde está localizado o projeto):
 
-    $ make 
+    $ cmake .
+    $ make
 
 Para executar, digite:
 
