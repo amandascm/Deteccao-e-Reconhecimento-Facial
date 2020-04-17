@@ -34,7 +34,7 @@ String window_name = "Detecta faces, reconhece faces e identifica multidao";
 
 //Variaveis globais
 int im_width, im_height, minMultidao = 10;
-float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.5;
+float areaResizedFrame = 0, razaoFacesFrame = 0.2, scale = 2.8;
 double thresh = 123.0;
 Size size(40,40);
 vector<Mat> videoProcessado;
@@ -66,7 +66,7 @@ void estatisticaTomDaPele(){
 			p = totalPorFaixa[i]/totalContabilizado;
 			if(p > 0.0009){
 				p = p*100;
-				fprintf(dados, "%.1f por cento das faces detectadas possuem intensidade da cor da pele entre %d e %d\n", p, i*32, i*32+32);
+				fprintf(dados, "%.1f%c das faces detectadas possuem intensidade da cor da pele entre %d e %d\n", p, 37, i*32, i*32+32);
 			}
 		}
 
