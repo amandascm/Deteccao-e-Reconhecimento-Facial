@@ -314,6 +314,7 @@ int main(int argc, char** argv){
 	int dif;
 	int i = 0;
 	int j = 0;
+	int h = 0;
 	int lendo = 1;
 	int printando = 1;
 	int pausa = 0; //Clicar espaco para pausar exibicao
@@ -341,6 +342,7 @@ int main(int argc, char** argv){
     		pacote.indice = (i-1); //Declara struct com indice e frame a ser processado
 
 			thread (detectAndDisplay, pacote).detach(); //Nova linha de execucao para processar frame
+			h++;
 		}else{
 			lendo = 0;
 		}
@@ -383,6 +385,8 @@ int main(int argc, char** argv){
 		}else if(c == 105){ //Interrompe processamento de frames e exibicao do video ao clicar i
 			lendo = 0;
 			printando = 0;
+			//so interrompe o processamento e exibicao quando todas as threads ja chamadas tiverem finalizado
+			while(videoProcessado.size() < h){}
 		}
 	}
 
